@@ -89,28 +89,3 @@ class ConversationSerializer(serializers.Serializer):
         instance.save()
         return instance
 
-# Additional serializers for specific use cases
-class UserListSerializer(serializers.Serializer):
-    """Simplified user serializer for list views"""
-    user_id = serializers.UUIDField(read_only=True)
-    username = serializers.CharField(read_only=True)
-    first_name = serializers.CharField(read_only=True)
-    last_name = serializers.CharField(read_only=True)
-    role = serializers.CharField(read_only=True)
-
-class MessageListSerializer(serializers.Serializer):
-    """Simplified message serializer for list views"""
-    message_id = serializers.UUIDField(read_only=True)
-    sender = UserListSerializer(read_only=True)
-    message_body = serializers.CharField(read_only=True)
-    sent_at = serializers.DateTimeField(read_only=True)
-
-class ConversationListSerializer(serializers.Serializer):
-    """Simplified conversation serializer for list views"""
-    conversation_id = serializers.UUIDField(read_only=True)
-    participants = UserListSerializer(many=True, read_only=True)
-    participant_count = serializers.SerializerMethodField()
-    created_at = serializers.DateTimeField(read_only=True)
-    
-    def get_participant_count(self, obj):
-        return obj.participants.count()
