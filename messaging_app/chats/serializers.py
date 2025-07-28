@@ -1,68 +1,117 @@
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 from .models import User, Message, Conversation
 
-class UserSerializer(serializers.HyperlinkedModelSerializer):
-    class Meta:
-        model = User
-        fields = [
-            'url', 'user_id', 'username', 'email', 'first_name', 'last_name',
-            'phone_number', 'role', 'created_at'
-        ]
-        read_only_fields = ['user_id', 'created_at']
-        extra_kwargs = {
-            'password_hash': {'write_only': True}
-        }
+class UserSerializer(serializers.Serializer):
+    user_id = serializers.UUIDField(read_only=True)
+    username = serializers.CharField(max_length=150)
+    email = serializers.EmailField()
+    first_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    last_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    phone_number = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    role = serializers.ChoiceField(choices=User.ROLE_CHOICES)
+    created_at = serializers.DateTimeField(read_only=True)
+    password_hash = serializers.CharField(write_only=True)
 
-class MessageSerializer(serializers.HyperlinkedModelSerializer):
-    sender = serializers.HyperlinkedRelatedField(
-        view_name='user-detail',
+    def create(self, validated_data):
+        """
+        Create and return a new User instance, given the validated data.
+        """
+        return User.objects.create(**validated_data)
+
+    def update(self, instance, validated_data):
+        """
+        Update and return an existing User instance, given the validated data.
+        """
+        instance.username = validated_data.get('username', instance.username)
+        instance.email = validated_data.get('email', instance.email)
+        instance.first_name = validated_data.get('first_name', instance.first_name)
+        instance.last_name = validated_data.get('last_name', instance.last_name)
+        instance.phone_number = validated_data.get('phone_number', instance.phone_number)
+        instance.role = validated_data.get('role', instance.role)
+        if 'password_hash' in validated_data:
+            instance.password_hash = validated_data.get('password_hash')
+        instance.save()
+        return instance
+
+    def validate_email(self, value):
+        """
+        Check that the email is unique.
+        """
+        if User.objects.filter(email=value).exists():
+            raise ValidationError("A user with this email already exists.")
+        return value
+
+class MessageSerializer(serializers.Serializer):
+    message_id = serializers.UUIDField(read_only=True)
+    sender = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    message_body = serializers.CharField()
+    sent_at = serializers.DateTimeField(read_only=True)
+
+    def create(self, validated_data):
+        """
+        Create and return a new Message instance, given the validated data.
+        """
+        return Message.objects.create(**validated_data)
+
+    def update(self, instance, validated_data):
+        """
+        Update and return an existing Message instance, given the validated data.
+        """
+        instance.sender = validated_data.get('sender', instance.sender)
+        instance.message_body = validated_data.get('message_body', instance.message_body)
+        instance.save()
+        return instance
+
+class ConversationSerializer(serializers.Serializer):
+    conversation_id = serializers.UUIDField(read_only=True)
+    participants = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.all(),
-        lookup_field='user_id'
+        many=True
     )
-    
-    class Meta:
-        model = Message
-        fields = ['url', 'message_id', 'sender', 'message_body', 'sent_at']
-        read_only_fields = ['message_id', 'sent_at']
-        extra_kwargs = {
-            'url': {'view_name': 'message-detail', 'lookup_field': 'message_id'},
-            'sender': {'view_name': 'user-detail', 'lookup_field': 'user_id'}
-        }
+    created_at = serializers.DateTimeField(read_only=True)
 
-class ConversationSerializer(serializers.HyperlinkedModelSerializer):
-    participants = serializers.HyperlinkedRelatedField(
-        view_name='user-detail',
-        queryset=User.objects.all(),
-        many=True,
-        lookup_field='user_id'
-    )
-    
-    class Meta:
-        model = Conversation
-        fields = ['url', 'conversation_id', 'participants', 'created_at']
-        read_only_fields = ['conversation_id', 'created_at']
-        extra_kwargs = {
-            'url': {'view_name': 'conversation-detail', 'lookup_field': 'conversation_id'},
-            'participants': {'view_name': 'user-detail', 'lookup_field': 'user_id'}
-        }
+    def create(self, validated_data):
+        """
+        Create and return a new Conversation instance, given the validated data.
+        """
+        participants = validated_data.pop('participants')
+        conversation = Conversation.objects.create(**validated_data)
+        conversation.participants.set(participants)
+        return conversation
 
+    def update(self, instance, validated_data):
+        """
+        Update and return an existing Conversation instance, given the validated data.
+        """
+        if 'participants' in validated_data:
+            participants = validated_data.pop('participants')
+            instance.participants.set(participants)
+        instance.save()
+        return instance
 
-    participants = serializers.HyperlinkedRelatedField(
-        view_name='user-detail',
-        read_only=True,
-        many=True,
-        lookup_field='user_id'
-    )
+# Additional serializers for specific use cases
+class UserListSerializer(serializers.Serializer):
+    """Simplified user serializer for list views"""
+    user_id = serializers.UUIDField(read_only=True)
+    username = serializers.CharField(read_only=True)
+    first_name = serializers.CharField(read_only=True)
+    last_name = serializers.CharField(read_only=True)
+    role = serializers.CharField(read_only=True)
+
+class MessageListSerializer(serializers.Serializer):
+    """Simplified message serializer for list views"""
+    message_id = serializers.UUIDField(read_only=True)
+    sender = UserListSerializer(read_only=True)
+    message_body = serializers.CharField(read_only=True)
+    sent_at = serializers.DateTimeField(read_only=True)
+
+class ConversationListSerializer(serializers.Serializer):
+    """Simplified conversation serializer for list views"""
+    conversation_id = serializers.UUIDField(read_only=True)
+    participants = UserListSerializer(many=True, read_only=True)
     participant_count = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = Conversation
-        fields = ['url', 'conversation_id', 'participants', 'participant_count', 'created_at']
-        read_only_fields = ['conversation_id', 'created_at']
-        extra_kwargs = {
-            'url': {'view_name': 'conversation-detail', 'lookup_field': 'conversation_id'},
-            'participants': {'view_name': 'user-detail', 'lookup_field': 'user_id'}
-        }
+    created_at = serializers.DateTimeField(read_only=True)
     
     def get_participant_count(self, obj):
         return obj.participants.count()
