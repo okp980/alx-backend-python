@@ -1,5 +1,4 @@
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
 from .models import User, Message, Conversation
 
 class UserSerializer(serializers.Serializer):
@@ -39,7 +38,7 @@ class UserSerializer(serializers.Serializer):
         Check that the email is unique.
         """
         if User.objects.filter(email=value).exists():
-            raise ValidationError("A user with this email already exists.")
+            raise serializers.ValidationError("A user with this email already exists.")
         return value
 
 class MessageSerializer(serializers.Serializer):
