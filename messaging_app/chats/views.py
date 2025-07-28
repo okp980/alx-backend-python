@@ -9,13 +9,23 @@ from .serializers import (
 class ConversationViewSet(viewsets.ModelViewSet):
     queryset = Conversation.objects.all()
     serializer_class = ConversationSerializer
+    
+    def get_queryset(self):
+        """Filter conversations by participant if user_id is provided."""
+        queryset = Conversation.objects.all()
+        user_id = self.request.query_params.get('user_id', None)
+        
+        if user_id:
+            queryset = queryset.filter(participants__user_id=user_id)
+        
+        return queryset
 
     def perform_create(self, serializer):
         """Automatically add the current user as a participant when creating a conversation."""
         conversation = serializer.save()
         conversation.participants.add(self.request.user)
     
-
+    def remove_participant(self, request, pk=None):
         """Remove a participant from a conversation."""
         conversation = self.get_object()
         user_id = request.data.get('user_id')
@@ -41,9 +51,20 @@ class MessageViewSet(viewsets.ModelViewSet):
     queryset = Message.objects.all()
     serializer_class = MessageSerializer
     
+    def get_queryset(self):
+        """Filter messages by user ID or conversation ID if provided in query parameters."""
+        queryset = Message.objects.all()
+        user_pk = self.kwargs.get('user')
+        conversation_id = self.request.query_params.get('conversation_id', None)
+        
+        if user_pk:
+            queryset = queryset.filter(sender__user_id=user_pk)
+        
+        if conversation_id:
+            queryset = queryset.filter(conversation__conversation_id=conversation_id)
+        
+        return queryset
     
     def perform_create(self, serializer):
         """Automatically set the sender to the current user when creating a message."""
         serializer.save(sender=self.request.user)
-    
-    

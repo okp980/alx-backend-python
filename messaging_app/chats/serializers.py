@@ -44,6 +44,7 @@ class UserSerializer(serializers.Serializer):
 class MessageSerializer(serializers.Serializer):
     message_id = serializers.UUIDField(read_only=True)
     sender = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    conversation = serializers.PrimaryKeyRelatedField(queryset=Conversation.objects.all())
     message_body = serializers.CharField()
     sent_at = serializers.DateTimeField(read_only=True)
 
@@ -58,6 +59,7 @@ class MessageSerializer(serializers.Serializer):
         Update and return an existing Message instance, given the validated data.
         """
         instance.sender = validated_data.get('sender', instance.sender)
+        instance.conversation = validated_data.get('conversation', instance.conversation)
         instance.message_body = validated_data.get('message_body', instance.message_body)
         instance.save()
         return instance
@@ -68,6 +70,7 @@ class ConversationSerializer(serializers.Serializer):
         queryset=User.objects.all(),
         many=True
     )
+    messages = MessageSerializer(many=True, read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
 
     def create(self, validated_data):
