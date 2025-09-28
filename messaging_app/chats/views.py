@@ -1,5 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
 from .models import Conversation, Message, User
 from .serializers import (
     ConversationSerializer, 
@@ -9,6 +11,11 @@ from .serializers import (
 class ConversationViewSet(viewsets.ModelViewSet):
     queryset = Conversation.objects.all()
     serializer_class = ConversationSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['participants', 'created_at']
+    search_fields = ['participants__username', 'participants__email']
+    ordering_fields = ['created_at']
+    ordering = ['-created_at']
     
     def get_queryset(self):
         """Filter conversations by participant if user_id is provided."""
@@ -50,6 +57,11 @@ class ConversationViewSet(viewsets.ModelViewSet):
 class MessageViewSet(viewsets.ModelViewSet):
     queryset = Message.objects.all()
     serializer_class = MessageSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['sender', 'conversation', 'sent_at']
+    search_fields = ['message_body', 'sender__username']
+    ordering_fields = ['sent_at']
+    ordering = ['-sent_at']
     
     def get_queryset(self):
         """Filter messages by user ID or conversation ID if provided in query parameters."""
