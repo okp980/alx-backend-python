@@ -7,6 +7,7 @@ class UserSerializer(serializers.Serializer):
     email = serializers.EmailField()
     first_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
     last_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    full_name = serializers.SerializerMethodField()
     phone_number = serializers.CharField(max_length=20, required=False, allow_blank=True)
     role = serializers.ChoiceField(choices=User.ROLE_CHOICES)
     created_at = serializers.DateTimeField(read_only=True)
@@ -40,6 +41,14 @@ class UserSerializer(serializers.Serializer):
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError("A user with this email already exists.")
         return value
+
+    def get_full_name(self, obj):
+        """
+        Return the full name by combining first_name and last_name.
+        """
+        first_name = obj.first_name or ""
+        last_name = obj.last_name or ""
+        return f"{first_name} {last_name}".strip()
 
 class MessageSerializer(serializers.Serializer):
     message_id = serializers.UUIDField(read_only=True)
