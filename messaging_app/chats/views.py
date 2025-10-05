@@ -7,10 +7,12 @@ from .serializers import (
     ConversationSerializer, 
     MessageSerializer, 
 )
+from .permissions import IsParticipantOfConversation, IsOwnerOrReadOnly
 
 class ConversationViewSet(viewsets.ModelViewSet):
     queryset = Conversation.objects.all()
     serializer_class = ConversationSerializer
+    permission_classes = [IsParticipantOfConversation]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['participants', 'created_at']
     search_fields = ['participants__username', 'participants__email']
@@ -19,13 +21,8 @@ class ConversationViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Filter conversations by participant if user_id is provided."""
-        queryset = Conversation.objects.all()
-        user_id = self.request.query_params.get('user_id', None)
-        
-        if user_id:
-            queryset = queryset.filter(participants__user_id=user_id)
-        
-        return queryset
+         # Only return conversations where the current user is a participant
+        return Conversation.objects.filter(participants=self.request.user)
 
     def perform_create(self, serializer):
         """Automatically add the current user as a participant when creating a conversation."""
@@ -57,6 +54,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
 class MessageViewSet(viewsets.ModelViewSet):
     queryset = Message.objects.all()
     serializer_class = MessageSerializer
+    permission_classes = [IsOwnerOrReadOnly]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['sender', 'conversation', 'sent_at']
     search_fields = ['message_body', 'sender__username']

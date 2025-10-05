@@ -52,7 +52,7 @@ class UserSerializer(serializers.Serializer):
 
 class MessageSerializer(serializers.Serializer):
     message_id = serializers.UUIDField(read_only=True)
-    sender = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    sender = serializers.PrimaryKeyRelatedField( read_only=True)
     conversation = serializers.PrimaryKeyRelatedField(queryset=Conversation.objects.all())
     message_body = serializers.CharField()
     sent_at = serializers.DateTimeField(read_only=True)
