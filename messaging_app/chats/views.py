@@ -8,11 +8,12 @@ from .serializers import (
     MessageSerializer, 
 )
 from .permissions import IsParticipantOfConversation, IsOwnerOrReadOnly
+from rest_framework.permissions import IsAuthenticated
 
 class ConversationViewSet(viewsets.ModelViewSet):
     queryset = Conversation.objects.all()
     serializer_class = ConversationSerializer
-    permission_classes = [IsParticipantOfConversation]
+    permission_classes = [IsAuthenticated, IsParticipantOfConversation]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['participants', 'created_at']
     search_fields = ['participants__username', 'participants__email']
@@ -29,6 +30,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
         conversation = serializer.save()
         conversation.participants.add(self.request.user)
     
+    # not sure of this function
     def remove_participant(self, request, pk=None):
         """Remove a participant from a conversation."""
         conversation = self.get_object()
@@ -37,7 +39,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
         if not user_id:
             return Response(
                 {'error': 'user_id is required'}, 
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_403_FORBIDDEN
             )
         
         try:
@@ -54,7 +56,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
 class MessageViewSet(viewsets.ModelViewSet):
     queryset = Message.objects.all()
     serializer_class = MessageSerializer
-    permission_classes = [IsOwnerOrReadOnly]
+    permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['sender', 'conversation', 'sent_at']
     search_fields = ['message_body', 'sender__username']
@@ -62,18 +64,11 @@ class MessageViewSet(viewsets.ModelViewSet):
     ordering = ['-sent_at']
     
     def get_queryset(self):
-        """Filter messages by user ID or conversation ID if provided in query parameters."""
-        queryset = Message.objects.all()
-        user_pk = self.kwargs.get('user')
-        conversation_id = self.request.query_params.get('conversation_id', None)
-        
-        if user_pk:
-            queryset = queryset.filter(sender__user_id=user_pk)
-        
-        if conversation_id:
-            queryset = queryset.filter(conversation__conversation_id=conversation_id)
-        
-        return queryset
+        """Filter messages to only show those the user has access to."""
+        # Return messages where the user is either the sender or a participant in the conversation
+        return Message.objects.filter(
+            models.Q(sender=self.request.user) | 
+            models.Q(conversation__participants=self.request.user)).distinct()
     
     def perform_create(self, serializer):
         """Automatically set the sender to the current user when creating a message."""
