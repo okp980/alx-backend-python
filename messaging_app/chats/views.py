@@ -10,6 +10,8 @@ from .serializers import (
 from .permissions import IsParticipantOfConversation, IsOwnerOrReadOnly
 from rest_framework.permissions import IsAuthenticated
 
+from .pagination import MessageResultsSetPagination
+
 class ConversationViewSet(viewsets.ModelViewSet):
     queryset = Conversation.objects.all()
     serializer_class = ConversationSerializer
@@ -29,8 +31,8 @@ class ConversationViewSet(viewsets.ModelViewSet):
         """Automatically add the current user as a participant when creating a conversation."""
         conversation = serializer.save()
         conversation.participants.add(self.request.user)
+        
     
-    # not sure of this function
     def remove_participant(self, request, pk=None):
         """Remove a participant from a conversation."""
         conversation = self.get_object()
@@ -39,7 +41,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
         if not user_id:
             return Response(
                 {'error': 'user_id is required'}, 
-                status=status.HTTP_403_FORBIDDEN
+                status=status.HTTP_40_BAD_REQUEST
             )
         
         try:
@@ -62,6 +64,7 @@ class MessageViewSet(viewsets.ModelViewSet):
     search_fields = ['message_body', 'sender__username']
     ordering_fields = ['sent_at']
     ordering = ['-sent_at']
+    pagination_class = MessageResultsSetPagination
     
     def get_queryset(self):
         """Filter messages to only show those the user has access to."""
