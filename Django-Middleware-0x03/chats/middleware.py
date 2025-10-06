@@ -1,5 +1,7 @@
 import logging
-from datetime import datetime
+from datetime import datetime, time
+from django.http import HttpResponse
+
 
 class RequestLoggingMiddleware:
     def __init__(self, get_response):
@@ -22,3 +24,15 @@ class RequestLoggingMiddleware:
         # the view is called.
         
         return response
+    
+    
+class RestrictAccessByTimeMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+        
+    def __call__(self, request):
+        current_time = datetime.now().time()
+        if current_time < time(9, 0) or current_time > time(18, 0):
+            return HttpResponse("Access denied", status=403)
+        else:
+            return self.get_response(request)
