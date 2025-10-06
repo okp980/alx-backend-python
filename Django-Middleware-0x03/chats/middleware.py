@@ -86,3 +86,57 @@ class OffensiveLanguageMiddleware:
         else:
             ip = request.META.get('REMOTE_ADDR')
         return ip
+
+
+class RolePermissionMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+        # Define protected paths that require admin/moderator access
+        self.protected_paths = [
+            '/admin/',
+            '/api/admin/',
+            '/conversations/',  # Creating/managing conversations
+            '/messages/',       # Creating messages
+        ]
+        # Define admin/moderator roles
+        self.allowed_roles = ['admin', 'moderator']
+        
+    def __call__(self, request):
+        # Check if the request path requires role-based access
+        if self.requires_role_check(request):
+            # Check if user is authenticated
+            if not request.user.is_authenticated:
+                return JsonResponse({
+                    'error': 'Authentication required to access this resource.'
+                }, status=401)
+            
+            # Check if user has required role
+            if not self.has_required_role(request.user):
+                return JsonResponse({
+                    'error': 'Access denied. Admin or moderator role required.'
+                }, status=403)
+        
+        response = self.get_response(request)
+        return response
+    
+    def requires_role_check(self, request):
+        """Check if the request path requires role-based access control."""
+        path = request.path
+        
+        # Check for exact matches or path prefixes
+        for protected_path in self.protected_paths:
+            if path.startswith(protected_path):
+                return True
+        
+        # Additional logic: Check for specific HTTP methods on certain paths
+        if (request.method in ['POST', 'PUT', 'PATCH', 'DELETE'] and 
+            ('conversations' in path or 'messages' in path)):
+            return True
+            
+        return False
+    
+    def has_required_role(self, user):
+        """Check if the user has admin or moderator role."""
+        if hasattr(user, 'role'):
+            return user.role in self.allowed_roles
+        return False
