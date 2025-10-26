@@ -1,0 +1,48 @@
+[flake8]
+# Maximum line length
+max-line-length = 127
+
+# Maximum complexity
+max-complexity = 10
+
+# Exclude patterns
+exclude = 
+    .git,
+    __pycache__,
+    venv,
+    env,
+    .venv,
+    *.egg-info,
+    .eggs,
+    dist,
+    build,
+    migrations,
+    settings.py,
+    settings_test.py
+
+# Ignore specific errors
+# E501: line too long (handled by max-line-length)
+# W503: line break before binary operator
+ignore = W503
+
+# Per-file ignores
+per-file-ignores =
+    __init__.py: F401
+
+# Select specific error codes
+# E9: SyntaxError, IndentationError
+# F63: print statements
+# F7: syntax errors
+# F82: undefined names
+select = E9, F63, F7, F82, W, F
+
+# Disable unused import warning for some files
+exclude =
+    .git,
+    __pycache__,
+    venv,
+    env,
+    .venv,
+    migrations,
+    manage.py
+

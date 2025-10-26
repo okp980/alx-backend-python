@@ -110,12 +110,25 @@ jobs:
         with:
           test_results_files: test-report.xml
 
-      - name: Publish coverage reports
+      - name: Upload coverage reports
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: coverage-py${{ matrix.python-version }}
-          path: htmlcov/
+          name: coverage-report-py${{ matrix.python-version }}
+          path: |
+            htmlcov/
+            coverage.xml
+          retention-days: 30
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          echo "## Coverage Report for Python ${{ matrix.python-version }}" >> $GITHUB_STEP_SUMMARY
+          if [ -f coverage.xml ]; then
+            echo "✅ Coverage report generated successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Coverage report not found" >> $GITHUB_STEP_SUMMARY
+          fi
 
   lint:
     runs-on: ubuntu-latest
@@ -133,7 +146,34 @@ jobs:
           python -m pip install --upgrade pip
           pip install flake8
 
-      - name: Run flake8
+      - name: Run flake8 linting
+        id: flake8
         run: |
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+          echo "Running flake8 linting checks..."
+          echo "Using configuration from .flake8 file"
+
+          # Run flake8 - will exit with code 1 if errors found, 0 if no errors
+          # Errors found will fail the build
+          flake8 . \
+            --count \
+            --statistics || linting_failed=$?
+
+          if [ "$linting_failed" -eq 1 ]; then
+            echo "exited=1" >> $GITHUB_OUTPUT
+            echo "Linting errors found!"
+          else
+            echo "exited=0" >> $GITHUB_OUTPUT
+            echo "All linting checks passed!"
+          fi
+
+      - name: Linting summary
+        if: always()
+        run: |
+          echo "## Linting Results" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.flake8.outcome }}" == "success" ]; then
+            echo "✅ **All linting checks passed!**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Linting errors found! Build will fail.**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please fix the linting errors before merging." >> $GITHUB_STEP_SUMMARY
+          fi
