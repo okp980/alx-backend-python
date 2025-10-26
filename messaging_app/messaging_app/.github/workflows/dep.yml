@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: messaging-app
+  labels:
+    app: messaging-app
+    version: v1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: messaging-app
+  template:
+    metadata:
+      labels:
+        app: messaging-app
+        version: v1
+    spec:
+      containers:
+        - name: messaging-app
+          image: YOUR_DOCKERHUB_USERNAME/messaging-app:latest
+          ports:
+            - containerPort: 8000
+              name: http
+              protocol: TCP
+          env:
+            - name: DEBUG
+              value: "False"
+            - name: ALLOWED_HOSTS
+              value: "messaging-app.example.com"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: messaging-app-secrets
+                  key: database-url
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: messaging-app-secrets
+                  key: secret-key
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health/
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health/
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: logs
+              mountPath: /app/logs
+      volumes:
+        - name: logs
+          emptyDir: {}
+      imagePullSecrets:
+        - name: dockerhub-secret
+      restartPolicy: Always
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: messaging-app-service
+  labels:
+    app: messaging-app
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 8000
+      protocol: TCP
+      name: http
+  selector:
+    app: messaging-app
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: messaging-app-secrets
+type: Opaque
+stringData:
+  database-url: "postgresql://user:password@postgres-service:5432/messaging_db"
+  secret-key: "your-secret-key-here"
+  django-secret: "your-django-secret-key"
+
+---
+# Note: Docker Hub secret is created via kubectl command, not via this file
+# Run: kubectl create secret docker-registry dockerhub-secret \
+#      --docker-username=YOUR_USERNAME --docker-password=YOUR_PASSWORD
+
