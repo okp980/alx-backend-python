@@ -44,7 +44,19 @@ Install:
    - ID: `github-credentials`
 5. Click "OK"
 
-### 5. Create Pipeline Job
+### 5. Configure Docker Hub Credentials
+
+1. Go to: Manage Jenkins → Credentials
+2. Click "Add Credentials"
+3. Select: Username with password
+4. Enter:
+   - Username: Your Docker Hub username
+   - Password: Your Docker Hub password or access token
+   - ID: `docker-hub-credentials`
+   - Description: "Docker Hub credentials"
+5. Click "OK"
+
+### 6. Create Pipeline Job
 
 1. Click "New Item"
 2. Name: `messaging-app-pipeline`
@@ -58,7 +70,7 @@ Install:
    - Script Path: `messaging_app/Jenkinsfile`
 5. Click "Save"
 
-### 6. Update Jenkinsfile
+### 7. Update Jenkinsfile
 
 **IMPORTANT:** Before running the pipeline, update the Jenkinsfile:
 
@@ -73,7 +85,7 @@ Line 17:
 url: 'https://github.com/okpunoremmanuel/alx-backend-python.git'  # Replace with your username
 ```
 
-### 7. Run the Pipeline
+### 8. Run the Pipeline
 
 1. Open your pipeline job
 2. Click "Build Now"
@@ -88,7 +100,8 @@ The Jenkins pipeline will:
 2. **Setup Python Environment** - Creates venv and installs dependencies
 3. **Database Migration** - Runs Django migrations
 4. **Tests** - Runs pytest with coverage reports
-5. **Build** - Marks build as complete
+5. **Build Docker Image** - Builds Docker image with build number
+6. **Push Docker Image** - Pushes image to Docker Hub
 
 ## Test Reports
 
@@ -98,11 +111,28 @@ After a successful run, you can view:
 - Coverage reports (HTML format)
 - Console output with detailed logs
 
+## Docker Image
+
+The pipeline builds and pushes Docker images to Docker Hub:
+
+- Image: `your_dockerhub_username/messaging-app:BUILD_NUMBER`
+- Latest: `your_dockerhub_username/messaging-app:latest`
+
+**IMPORTANT**: Update line 8 in `messaging_app/Jenkinsfile`:
+
+```groovy
+DOCKER_HUB_REPO = 'your_dockerhub_username/messaging-app'
+```
+
+**Note**: You need to run Jenkins with Docker socket access. See [DOCKER_SETUP.md](./DOCKER_SETUP.md) for details.
+
 ## Project Structure
 
 ```
 messaging_app/
 ├── Jenkinsfile          # Pipeline definition
+├── Dockerfile           # Docker image definition
+├── .dockerignore        # Docker ignore patterns
 ├── requirements.txt     # Python dependencies (includes pytest)
 ├── pytest.ini          # Pytest configuration
 ├── manage.py           # Django management
