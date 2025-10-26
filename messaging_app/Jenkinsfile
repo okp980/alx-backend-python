@@ -1,0 +1,98 @@
+pipeline {
+    agent any
+    
+    environment {
+        PYTHON_VERSION = '3.9'
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Checking out source code from GitHub...'
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: '*/main']],
+                    userRemoteConfigs: [[
+                        credentialsId: 'github-credentials',
+                        url: 'https://github.com/YOUR_USERNAME/alx-backend-python.git'
+                    ]]
+                ])
+                
+                echo "Current directory: ${pwd()}"
+                sh "ls -la"
+            }
+        }
+        
+        stage('Setup Python Environment') {
+            steps {
+                echo 'Setting up Python environment...'
+                sh '''
+                    python3 --version
+                    python3 -m venv venv || true
+                    source venv/bin/activate
+                    pip install --upgrade pip
+                    pip install -r requirements.txt
+                '''
+            }
+        }
+        
+        stage('Database Migration') {
+            steps {
+                echo 'Running database migrations...'
+                sh '''
+                    source venv/bin/activate
+                    python manage.py makemigrations
+                    python manage.py migrate --no-input
+                '''
+            }
+        }
+        
+        stage('Tests') {
+            steps {
+                echo 'Running pytest tests...'
+                sh '''
+                    source venv/bin/activate
+                    pytest chats/tests.py -v --tb=short --junitxml=test-report.xml --cov=. --cov-report=xml --cov-report=html
+                '''
+            }
+            post {
+                always {
+                    // Publish test results
+                    junit 'test-report.xml'
+                    
+                    // Publish coverage reports
+                    publishHTML([
+                        reportDir: 'htmlcov',
+                        reportFiles: 'index.html',
+                        reportName: 'Coverage Report'
+                    ])
+                }
+                success {
+                    echo 'All tests passed!'
+                }
+                failure {
+                    echo 'Some tests failed!'
+                }
+            }
+        }
+        
+        stage('Build') {
+            steps {
+                echo 'Build completed successfully!'
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo 'Pipeline completed!'
+        }
+        success {
+            echo 'Pipeline succeeded!'
+        }
+        failure {
+            echo 'Pipeline failed!'
+        }
+    }
+}
+
