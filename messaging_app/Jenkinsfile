@@ -9,14 +9,9 @@ pipeline {
         stage('Checkout') {
             steps {
                 echo 'Checking out source code from GitHub...'
-                checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: '*/main']],
-                    userRemoteConfigs: [[
-                        credentialsId: 'github-credentials',
-                        url: 'https://github.com/YOUR_USERNAME/alx-backend-python.git'
-                    ]]
-                ])
+                git branch: 'main',
+                    credentialsId: 'github-credentials',
+                    url: 'https://github.com/YOUR_USERNAME/alx-backend-python.git'
                 
                 echo "Current directory: ${pwd()}"
                 sh "ls -la"
